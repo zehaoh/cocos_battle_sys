@@ -13,6 +13,7 @@ import { BattleRecorder } from './replay/BattleRecorder';
 import { TimerService } from './services/TimerService';
 import { SkillExecutor } from './skill/SkillExecutor';
 import type { SkillGraph } from './skill/SkillGraph';
+import { SkillGraphLoader } from './skill/SkillGraphLoader';
 
 export class BattleWorld {
   public readonly world = new World();
@@ -26,6 +27,7 @@ export class BattleWorld {
 
   private readonly skills = new Map<string, SkillGraph>();
   private readonly aggroTables = new Map<number, AggroTable>();
+  private readonly skillGraphLoader = new SkillGraphLoader();
 
   private tick = 0;
   public readonly serverSync: ServerSync;
@@ -56,6 +58,12 @@ export class BattleWorld {
     this.skills.set(skillId, graph);
   }
 
+
+
+  public loadSkillGraphJSON(skillId: string, graphJSON: string): void {
+    const graph = this.skillGraphLoader.loadFromJSON(graphJSON);
+    this.registerSkill(skillId, graph);
+  }
 
   public getSkillGraph(skillId: string): SkillGraph | undefined {
     return this.skills.get(skillId);

@@ -8,6 +8,10 @@ import type { NavMesh } from '../pathfinding/NavMesh';
 import type { SpawnProjectileRequest } from '../projectile/Projectile';
 import { ProjectileFactory } from '../projectile/ProjectileFactory';
 import { SkillGraphRuntime } from '../skill/SkillGraphRuntime';
+import { GridNav } from '../navigation/GridNav';
+import { NavMesh as RuntimeNavMesh } from '../navigation/NavMesh';
+import { NavSystem } from '../navigation/NavSystem';
+import { Pathfinder } from '../navigation/Pathfinder';
 import { AISystem } from '../systems/AISystem';
 import { AggroSystem } from '../systems/AggroSystem';
 import { BuffSystem } from '../systems/BuffSystem';
@@ -27,12 +31,14 @@ import { UnitSystem } from '../systems/UnitSystem';
 
 export interface RuntimeOptions {
   navMesh?: NavMesh;
+  gridNavSize?: { width: number; height: number };
 }
 
 export class BattleRuntime {
   private readonly projectileFactory = new ProjectileFactory();
   private readonly skillGraphRuntime: SkillGraphRuntime;
   public readonly inputSystem = new InputSystem();
+  private fallbackGridNav = new GridNav(128, 128);
 
   constructor(public readonly battleWorld: BattleWorld) {
     this.skillGraphRuntime = new SkillGraphRuntime(battleWorld);
@@ -127,6 +133,16 @@ export class BattleRuntime {
       const req = payload as { summonerId: number; projectileId: number; targetId: number | null };
       this.projectileFactory.spawn(world, req.projectileId, req.summonerId, req.targetId);
     });
+
+    if (options.gridNavSize) {
+      this.fallbackGridNav = new GridNav(options.gridNavSize.width, options.gridNavSize.height);
+    }
+
+    const navigator = options.navMesh
+      ? new RuntimeNavMesh(options.navMesh)
+      : this.fallbackGridNav;
+
+    world.registerSystem(new NavSystem(new Pathfinder(navigator)));
 
     if (options.navMesh) {
       world.registerSystem(new PathfindingSystem(options.navMesh));

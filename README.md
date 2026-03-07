@@ -21,6 +21,22 @@ Client Input
      -> DropSystem
 ```
 
+## Blueprint upgrades in this revision
+
+- BehaviorTree AI stack
+  - `BehaviorNode`, `SelectorNode`, `SequenceNode`, `DecoratorNode`, `ConditionNode`, `ActionNode`
+  - `Blackboard` + `AIContext`
+  - `BehaviorTreeLoader` for JSON-defined trees
+  - `AISystem` ticks per-entity tree instances
+- Navigation stack
+  - `AStar`, `GridNav`, runtime `NavMesh` adapter
+  - `Pathfinder`, `PathComponent`, `NavSystem`
+  - integrated into `BattleRuntime` navigation selection
+- SkillGraph editor/plugin scaffolding
+  - `SkillGraphEditor`, `NodeView`, `EdgeView`, `GraphSerializer`, `SkillGraphPreview`
+  - `SkillGraphLoader` for JSON asset import
+  - SkillGraph asset model now supports `nodes + edges`
+
 ## Included modules
 
 - Core runtime
@@ -32,7 +48,6 @@ Client Input
   - `SkillGraphAsset`: `nodes + edges`
   - `SkillGraphRuntime` as graph interpreter entry
   - `SkillExecutor` + `SkillNodeFactory` node execution
-  - node library: `Cast`, `Delay`, `Condition`, `SpawnProjectile`, `Damage`, `AddBuff`
 - Projectile runtime
   - `ProjectileFactory` + `ProjectileConfig`
   - `ProjectileSystem` owns movement/lifetime
@@ -40,21 +55,13 @@ Client Input
 - Industrial combat pipeline
   - `DamageRequest`, `DamageResult`, `DamageType`
   - `DamagePipeline` stages: Buff -> Defense -> Resistance -> Crit
-  - modifiers: `BuffModifier`, `DefenseModifier`, `ResistanceModifier`, `CritModifier`
 - Buff lifecycle system (data-driven)
   - `BuffSystem`: add/tick/expire
   - stack policies: `refresh`, `extend`, `replace`, `ignore`, `independent`
-  - events: `buffAdd`, `buffTick`, `buffExpire`
-- Buff/stat/unit lifecycle
-  - `BuffSystem`, `StatSystem`, `UnitSystem`, `DeathSystem`, `DropSystem`, `SummonSystem`
-- Utility/runtime services
-  - `BattleWorld`, `BattleRuntime`, `BattleConfigService`, `TimerService`
-  - `BattleRecorder`, `BattleReplay`, `ServerSync`, `ClientPrediction`, `RollbackBuffer`
-  - `MathUtil`, `SpatialHash`, `ObjectPool`
 
 ## Notes
 
 Architecture follows Hybrid ECS + event-driven decoupling:
-- SkillGraph only emits events / execution signals, no direct system coupling
-- Projectile does not calculate final HP changes
+- SkillGraph runtime is an interpreter over graph assets
+- Buff lifecycle is policy-driven and event-observable
 - Combat pipeline is the HP change authority
