@@ -1,0 +1,6 @@
+[
+  { "id": "poison_1", "type": "Poison", "duration": 5, "magnitude": 4 },
+  { "id": "stun_1", "type": "Stun", "duration": 1.2, "magnitude": 99 },
+  { "id": "slow_1", "type": "Slow", "duration": 3, "magnitude": 0.2 },
+  { "id": "shield_1", "type": "Shield", "duration": 6, "magnitude": 20 }
+]
