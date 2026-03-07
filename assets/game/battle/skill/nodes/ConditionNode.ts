@@ -1,5 +1,6 @@
 import { BaseSkillNode } from './BaseSkillNode';
 import type { SkillContext, SkillNodeResult } from '../SkillNode';
+import { SkillGraphUtil } from '../SkillGraph';
 import type { SkillNodeData } from '../SkillGraph';
 
 export class ConditionNode extends BaseSkillNode {
@@ -7,17 +8,18 @@ export class ConditionNode extends BaseSkillNode {
     const requireTarget = this.boolParam(node, 'requireTarget', true);
     const hasTarget = ctx.targetId !== null;
 
-    if (node.next.length === 0) return {};
+    const next = SkillGraphUtil.nextNodeIds(ctx.graph, node.id);
+    if (next.length === 0) return {};
 
     if ((requireTarget && hasTarget) || (!requireTarget && !hasTarget)) {
       return {
-        nextNodeIds: [node.next[0]],
+        nextNodeIds: [next[0]],
       };
     }
 
-    if (node.next.length > 1) {
+    if (next.length > 1) {
       return {
-        nextNodeIds: [node.next[1]],
+        nextNodeIds: [next[1]],
       };
     }
 

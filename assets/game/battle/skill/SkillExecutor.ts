@@ -51,7 +51,7 @@ export class SkillExecutor {
         return;
       }
 
-      const nextIds = result?.nextNodeIds ?? nodeData.next;
+      const nextIds = result?.nextNodeIds ?? SkillGraphUtil.nextNodeIds(graph, nodeId);
       for (const nextId of nextIds) {
         queue.push(nextId);
       }

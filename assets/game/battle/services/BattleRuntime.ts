@@ -137,7 +137,7 @@ export class BattleRuntime {
     world.registerSystem(new StatSystem());
     world.registerSystem(new MovementSystem());
     world.registerSystem(new AggroSystem(this.battleWorld));
-    world.registerSystem(new BuffSystem(this.battleWorld.buffFactory));
+    world.registerSystem(new BuffSystem(this.battleWorld.buffFactory, this.battleWorld));
     world.registerSystem(new AISystem());
     world.registerSystem(new SkillSystem());
     world.registerSystem(new SummonSystem());

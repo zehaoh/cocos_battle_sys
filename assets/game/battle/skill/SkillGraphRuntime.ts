@@ -10,6 +10,20 @@ export class SkillGraphRuntime {
   constructor(private readonly battleWorld: BattleWorld) {}
 
   public startSkill(event: StartSkillEvent): void {
-    this.battleWorld.castSkill(event.skillId, event.casterId, event.targetId);
+    const graph = this.battleWorld.getSkillGraph(event.skillId);
+    if (!graph) return;
+
+    this.battleWorld.skillExecutor.execute(graph, {
+      casterId: event.casterId,
+      targetId: event.targetId,
+      world: this.battleWorld,
+    });
+
+    this.battleWorld.world.eventBus.emit('skillGraphExecuted', {
+      casterId: event.casterId,
+      skillId: event.skillId,
+      targetId: event.targetId,
+      graphId: graph.id,
+    });
   }
 }

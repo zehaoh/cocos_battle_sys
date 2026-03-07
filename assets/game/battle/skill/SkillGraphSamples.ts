@@ -4,36 +4,26 @@ export const FireballSkillGraph: SkillGraph = {
   id: 1001,
   entry: 1,
   nodes: [
-    {
-      id: 1,
-      type: 'Cast',
-      next: [2],
-    },
+    { id: 1, type: 'Cast' },
     {
       id: 2,
       type: 'SpawnProjectile',
-      next: [3],
-      params: {
-        projectileId: 2001,
-      },
+      params: { projectileId: 2001 },
     },
     {
       id: 3,
       type: 'Damage',
-      next: [4],
-      params: {
-        damage: 16,
-        ratio: 1.2,
-      },
+      params: { damage: 16, ratio: 1.2 },
     },
     {
       id: 4,
       type: 'AddBuff',
-      next: [],
-      params: {
-        buffId: 'burn',
-        toTarget: true,
-      },
+      params: { buffId: 'burn', toTarget: true },
     },
+  ],
+  edges: [
+    { from: 1, to: 2 },
+    { from: 2, to: 3 },
+    { from: 3, to: 4 },
   ],
 };

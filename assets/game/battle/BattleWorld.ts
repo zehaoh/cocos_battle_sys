@@ -56,6 +56,11 @@ export class BattleWorld {
     this.skills.set(skillId, graph);
   }
 
+
+  public getSkillGraph(skillId: string): SkillGraph | undefined {
+    return this.skills.get(skillId);
+  }
+
   public castSkill(skillId: string, casterId: number, targetId: number | null): void {
     const graph = this.skills.get(skillId);
     if (!graph) return;
@@ -133,13 +138,20 @@ export class BattleWorld {
 
     const meta = this.buffFactory.create(buffId);
     const current = comp.buffs.get(buffId);
-    const next = this.buffStackRule.apply(current, meta);
+    const next = this.buffStackRule.apply(current, meta, meta.stackPolicy);
     comp.buffs.set(buffId, next);
     meta.onApply?.(this, entityId, next.stacks);
 
     const payload = { tick: this.tick, entityId, buffId, stacks: next.stacks };
     this.recorder.record(this.tick, 'buffApply', payload);
     this.world.eventBus.emit('buffApply', payload);
+    this.world.eventBus.emit('buffAdd', {
+      entityId,
+      buffId,
+      stacks: next.stacks,
+      stackPolicy: next.stackPolicy,
+      effectType: meta.effectType ?? 'Trigger',
+    });
   }
 
   public addThreat(ownerId: number, sourceId: number, value: number): void {
