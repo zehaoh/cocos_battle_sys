@@ -5,10 +5,14 @@ import { CombatComponent } from '../components/CombatComponent';
 import { TargetComponent } from '../components/TargetComponent';
 import { TransformComponent } from '../components/TransformComponent';
 
-export type DamageApplier = (attackerId: number, defenderId: number, damage: number) => void;
+export interface DamageRequest {
+  attackerId: number;
+  defenderId: number;
+  damage: number;
+}
 
 export class CombatSystem extends System {
-  constructor(private readonly applyDamage: DamageApplier) {
+  constructor() {
     super(40);
   }
 
@@ -35,7 +39,11 @@ export class CombatSystem extends System {
 
       const dist = MathUtil.distance(transform, targetTransform);
       if (dist <= combat.attackRange && combat.cooldownLeft <= 0) {
-        this.applyDamage(entity.id, target.targetId, combat.attack);
+        world.eventBus.emit('damageRequest', {
+          attackerId: entity.id,
+          defenderId: target.targetId,
+          damage: combat.attack,
+        } as DamageRequest);
         combat.cooldownLeft = combat.attackCooldown;
       }
     }

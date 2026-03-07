@@ -3,10 +3,14 @@ import type { World } from '../../core/ecs/World';
 import { SkillComponent } from '../components/SkillComponent';
 import { TargetComponent } from '../components/TargetComponent';
 
-export type SkillCaster = (skillId: string, casterId: number, targetId: number | null) => void;
+export interface SkillCastRequest {
+  skillId: string;
+  casterId: number;
+  targetId: number | null;
+}
 
 export class SkillSystem extends System {
-  constructor(private readonly cast: SkillCaster) {
+  constructor() {
     super(30);
   }
 
@@ -22,7 +26,13 @@ export class SkillSystem extends System {
 
         runtime.castingLeft = runtime.castTime;
         runtime.cooldownLeft = runtime.cooldown;
-        this.cast(skillId, entity.id, targetComp?.targetId ?? null);
+
+        const eventPayload: SkillCastRequest = {
+          skillId,
+          casterId: entity.id,
+          targetId: targetComp?.targetId ?? null,
+        };
+        world.eventBus.emit('skillCastRequest', eventPayload);
       }
     }
   }

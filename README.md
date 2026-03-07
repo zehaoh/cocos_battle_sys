@@ -4,33 +4,28 @@ Industrial-style ARPG battle framework core written in TypeScript.
 
 ## Included modules
 
-- ECS core (`Entity`, `Component`, `System`, `World`, managers)
-  - Query execution uses component-index intersection instead of brute-force scanning
-- Math and runtime utilities (`MathUtil`, `SpatialHash`, `ObjectPool`)
-- Battle components and runtime systems
-- `BattleWorld` orchestration and `UnitFactory`
-- Service layer for runtime composition:
-  - `BattleRuntime` default system pipeline installer
-  - `BattleConfigService` for tunables
-  - `EventBus` for decoupled gameplay events
-- Skill graph + executor + sample nodes
-- Projectile behavior pipeline with multi-mode projectiles:
-  - `homing`, `linear`, `pierce`, `split`, `bounce`
-- Buff model + stack policy (`refresh` / `extend` / `replace`)
-- Aggro subsystem with threat table + taunt support + decay
-- AI behavior tree primitives (`Selector` / `Sequence` / `Condition`) + AI system integration
+- Core runtime
+  - `World` + `EntityManager` + `SystemScheduler`
+  - frame-queued `EventBus` with `flush` dispatch
+- Math/runtime utilities (`MathUtil`, `SpatialHash`, `ObjectPool`, `TimerService`)
+- Battle components and runtime systems (movement/combat/skill/projectile/buff/aggro/ai/sync)
+- `BattleWorld` orchestration + `BattleRuntime` pipeline installer
+- Service layer
+  - `BattleConfigService`
+  - `CombatService` + `DamageCalculator`
+- Skill graph runtime
+  - `SkillGraph`, `SkillExecutor`
+  - nodes: `CastNode`, `SpawnProjectileNode`, `DamageNode`, `AddBuffNode`
+- Projectile model with multi-mode behavior (`homing`, `linear`, `pierce`, `split`, `bounce`)
+- Buff stack policy (`refresh` / `extend` / `replace`)
+- Aggro subsystem with threat table + taunt + decay
+- AI behavior tree primitives (`Selector` / `Sequence` / `Condition`)
 - NavMesh A* pathfinding
-- Battle recorder + replay reader
-- Network sync framework with snapshot sync + client prediction + rollback buffer
-
-## Directory
-
-```text
-assets/game/
-  core/
-  battle/
-```
+- Replay + networking skeleton (`BattleRecorder`, `BattleReplay`, `ServerSync`, `ClientPrediction`, `RollbackBuffer`)
 
 ## Notes
 
-This repository is a battle-engine foundation intended to scale from framework skeleton toward full ARPG production runtime.
+Architecture follows a Hybrid ECS blueprint for Cocos-style ARPG battle runtimes:
+- Systems communicate via `World.eventBus` (instead of direct system-to-system calls)
+- Components store data only
+- Skill/Buff/AI logic is organized toward data-driven extension

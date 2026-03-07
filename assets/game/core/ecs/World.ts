@@ -1,13 +1,16 @@
+import { EventBus } from '../event/EventBus';
 import { ComponentManager } from './ComponentManager';
 import type { Component } from './Component';
 import { Entity, type EntityId } from './Entity';
 import { EntityManager } from './EntityManager';
 import { System } from './System';
+import { SystemScheduler } from './SystemScheduler';
 
 export class World {
   private readonly entityManager = new EntityManager();
   private readonly componentManager = new ComponentManager();
-  private readonly systems: System[] = [];
+  private readonly scheduler = new SystemScheduler();
+  public readonly eventBus = new EventBus<Record<string, unknown>>();
   private readonly deferredRemovals: EntityId[] = [];
 
   public createEntity(): Entity {
@@ -49,24 +52,16 @@ export class World {
   }
 
   public registerSystem(system: System): void {
-    this.systems.push(system);
-    this.systems.sort((a, b) => a.priority - b.priority);
-    system.onAttach(this);
+    this.scheduler.add(system, this);
   }
 
   public unregisterSystem(system: System): void {
-    const index = this.systems.indexOf(system);
-    if (index >= 0) {
-      this.systems.splice(index, 1);
-      system.onDetach(this);
-    }
+    this.scheduler.remove(system, this);
   }
 
   public update(dt: number): void {
-    for (const system of this.systems) {
-      if (!system.enabled) continue;
-      system.update(this, dt);
-    }
+    this.scheduler.update(this, dt);
+    this.eventBus.flush();
     this.flushEntityRemovals();
   }
 
@@ -75,7 +70,8 @@ export class World {
   }
 
   public clear(): void {
-    this.systems.length = 0;
+    this.scheduler.clear(this);
+    this.eventBus.clear();
     this.componentManager.clear();
     this.entityManager.clear();
     this.deferredRemovals.length = 0;

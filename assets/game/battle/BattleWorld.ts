@@ -1,10 +1,10 @@
-import { EventBus } from '../core/event/EventBus';
 import { World } from '../core/ecs/World';
 import { MathUtil } from '../core/math/MathUtil';
 import { ObjectPool } from '../core/pool/ObjectPool';
 import { AggroTable } from './aggro/AggroTable';
 import { BuffFactory } from './buff/BuffFactory';
 import { BuffStackRule } from './buff/BuffStackRule';
+import { CombatService } from './combat/CombatService';
 import { BattleConfigService, type BattleConfig } from './config/BattleConfig';
 import { BuffComponent } from './components/BuffComponent';
 import { CombatComponent } from './components/CombatComponent';
@@ -14,16 +14,9 @@ import { ServerSync } from './network/ServerSync';
 import { ProjectileBehaviorTree } from './projectile/ProjectileBehaviorTree';
 import type { ProjectileConfig } from './projectile/Projectile';
 import { BattleRecorder } from './replay/BattleRecorder';
+import { TimerService } from './services/TimerService';
 import { SkillExecutor } from './skill/SkillExecutor';
 import { SkillGraph } from './skill/SkillGraph';
-
-export interface BattleEvents {
-  castSkill: { tick: number; skillId: string; casterId: number; targetId: number | null };
-  damage: { tick: number; attackerId: number; defenderId: number; damage: number; hpLeft: number };
-  unitDead: { tick: number; entityId: number };
-  projectileSpawn: { tick: number; projectileId: number; ownerId: number; targetId: number; projectileType: ProjectileType };
-  buffApply: { tick: number; entityId: number; buffId: string; stacks: number };
-}
 
 export class BattleWorld {
   public readonly world = new World();
@@ -33,7 +26,8 @@ export class BattleWorld {
   public readonly recorder = new BattleRecorder();
   public readonly projectileBT = new ProjectileBehaviorTree();
   public readonly config: BattleConfigService;
-  public readonly eventBus = new EventBus<BattleEvents>();
+  public readonly timer = new TimerService();
+  private readonly combatService = new CombatService();
 
   private readonly skills = new Map<string, SkillGraph>();
   private readonly aggroTables = new Map<number, AggroTable>();
@@ -64,6 +58,7 @@ export class BattleWorld {
 
   public update(dt: number): void {
     this.world.update(dt);
+    this.timer.update(dt);
     this.tick += 1;
 
     for (const [, table] of this.aggroTables) {
@@ -93,7 +88,7 @@ export class BattleWorld {
 
     const payload = { tick: this.tick, skillId, casterId, targetId };
     this.recorder.record(this.tick, 'castSkill', payload);
-    this.eventBus.emit('castSkill', payload);
+    this.world.eventBus.emit('castSkill', payload);
   }
 
   public applyDamage(attackerId: number, defenderId: number, rawDamage: number): void {
@@ -102,7 +97,7 @@ export class BattleWorld {
     const combat = defender.get<CombatComponent>('Combat');
     if (!combat || !combat.alive) return;
 
-    const damage = Math.max(1, rawDamage - combat.defense);
+    const damage = this.combatService.computeDamage(rawDamage, combat.defense);
     combat.hp -= damage;
     this.addThreat(defenderId, attackerId, damage);
 
@@ -111,7 +106,7 @@ export class BattleWorld {
       combat.hp = 0;
       this.world.destroyEntity(defenderId);
       this.aggroTables.delete(defenderId);
-      this.eventBus.emit('unitDead', { tick: this.tick, entityId: defenderId });
+      this.world.eventBus.emit('unitDead', { tick: this.tick, entityId: defenderId });
     }
 
     const payload = {
@@ -123,7 +118,7 @@ export class BattleWorld {
     };
 
     this.recorder.record(this.tick, 'damage', payload);
-    this.eventBus.emit('damage', payload);
+    this.world.eventBus.emit('damage', payload);
   }
 
   public spawnProjectile(
@@ -185,7 +180,7 @@ export class BattleWorld {
     };
 
     this.recorder.record(this.tick, 'projectileSpawn', payload);
-    this.eventBus.emit('projectileSpawn', payload);
+    this.world.eventBus.emit('projectileSpawn', payload);
 
     return projectile.id;
   }
@@ -246,7 +241,7 @@ export class BattleWorld {
 
     const payload = { tick: this.tick, entityId, buffId, stacks: next.stacks };
     this.recorder.record(this.tick, 'buffApply', payload);
-    this.eventBus.emit('buffApply', payload);
+    this.world.eventBus.emit('buffApply', payload);
   }
 
   public addThreat(ownerId: number, sourceId: number, value: number): void {
