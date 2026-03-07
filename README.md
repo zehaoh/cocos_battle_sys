@@ -2,39 +2,53 @@
 
 Industrial-style ARPG battle framework core written in TypeScript.
 
+## Core 10-system battle architecture
+
+```text
+Client Input
+  -> InputSystem
+  -> SkillSystem
+  -> SkillGraphRuntime
+  -> BattleEventBus
+     -> ProjectileSystem
+     -> CollisionSystem
+     -> CombatSystem
+     -> BuffSystem
+     -> SummonSystem
+     -> StatSystem
+     -> UnitSystem
+     -> DeathSystem
+     -> DropSystem
+```
+
 ## Included modules
 
 - Core runtime
   - `World` + `EntityManager` + `SystemScheduler`
   - frame-queued `EventBus` with `flush` dispatch
-- Math/runtime utilities (`MathUtil`, `SpatialHash`, `ObjectPool`, `TimerService`)
-- Battle components and runtime systems (movement/combat/skill/projectile/buff/aggro/ai/sync)
-- `BattleWorld` orchestration + `BattleRuntime` pipeline installer
-- Service layer
-  - `BattleConfigService`
-  - `CombatService` + `DamagePipeline`
+- Input and command pipeline
+  - `InputSystem` + `InputCommand` (`CastSkill` / `Move` / `Target`)
+- Skill runtime
+  - `SkillSystem` checks cooldown and emits cast requests
+  - `SkillGraphRuntime` executes graph via `SkillExecutor`
+- Projectile runtime
+  - `ProjectileFactory` + `ProjectileConfig`
+  - `ProjectileSystem` owns movement/lifetime
+  - `CollisionSystem` emits projectile hit events
 - Industrial combat pipeline
   - `DamageRequest`, `DamageResult`, `DamageType`
+  - `DamagePipeline` stages: Buff -> Defense -> Resistance -> Crit
   - modifiers: `BuffModifier`, `DefenseModifier`, `ResistanceModifier`, `CritModifier`
-  - flow: Projectile/Skill -> `damageRequest` -> combat pipeline -> HP/event
-- Data-driven SkillGraph runtime
-  - graph schema: `SkillGraph` / `SkillNodeData`
-  - executor + node factory: `SkillExecutor`, `SkillNodeFactory`
-  - node library: `Cast`, `Delay`, `Condition`, `SpawnProjectile`, `Damage`, `AddBuff`
-- Data-driven Projectile runtime
-  - `ProjectileFactory` + `ProjectileConfig`
-  - `ProjectileSystem` handles move/collision/life-cycle only
-  - emits `projectileHit`; damage is handled by combat flow
-  - behaviors: `Linear`, `Homing`, `Bounce`, `Split`
-- Buff stack policy (`refresh` / `extend` / `replace`)
-- Aggro subsystem with threat table + taunt + decay
-- AI behavior tree primitives (`Selector` / `Sequence` / `Condition`)
-- NavMesh A* pathfinding
-- Replay + networking skeleton (`BattleRecorder`, `BattleReplay`, `ServerSync`, `ClientPrediction`, `RollbackBuffer`)
+- Buff/stat/unit lifecycle
+  - `BuffSystem`, `StatSystem`, `UnitSystem`, `DeathSystem`, `DropSystem`, `SummonSystem`
+- Utility/runtime services
+  - `BattleWorld`, `BattleRuntime`, `BattleConfigService`, `TimerService`
+  - `BattleRecorder`, `BattleReplay`, `ServerSync`, `ClientPrediction`, `RollbackBuffer`
+  - `MathUtil`, `SpatialHash`, `ObjectPool`
 
 ## Notes
 
-Architecture follows a Hybrid ECS blueprint for Cocos-style ARPG battle runtimes:
-- Systems communicate via `World.eventBus` (instead of direct system-to-system calls)
-- Components store data only
-- Skill/Buff/AI/Projectile/Combat logic is organized toward data-driven extension
+Architecture follows Hybrid ECS + event-driven decoupling:
+- SkillGraph only emits events, no direct system invocation
+- Projectile does not calculate final HP changes
+- CombatSystem is the damage pipeline entry for HP application

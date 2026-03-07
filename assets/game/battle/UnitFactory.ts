@@ -4,6 +4,7 @@ import { BuffComponent } from './components/BuffComponent';
 import { CombatComponent } from './components/CombatComponent';
 import { MoveComponent } from './components/MoveComponent';
 import { SkillComponent } from './components/SkillComponent';
+import { StatComponent } from './components/StatComponent';
 import { TargetComponent } from './components/TargetComponent';
 import { TransformComponent } from './components/TransformComponent';
 
@@ -28,6 +29,7 @@ export class UnitFactory {
     world.addComponent(entity.id, new CombatComponent(data.team, data.hp, data.hp, data.attack, data.defense, 0, 0, data.attackRange));
     world.addComponent(entity.id, new TargetComponent());
     world.addComponent(entity.id, new SkillComponent());
+    world.addComponent(entity.id, new StatComponent(data.attack, data.defense, 0.1, 1.5, data.attack, data.defense, 0.1, 1.5, data.moveSpeed));
     world.addComponent(entity.id, new BuffComponent());
     if (data.ai) {
       world.addComponent(entity.id, new AIComponent());
