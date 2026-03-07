@@ -17,8 +17,11 @@ Industrial-style ARPG battle framework core written in TypeScript.
   - graph schema: `SkillGraph` / `SkillNodeData`
   - executor + node factory: `SkillExecutor`, `SkillNodeFactory`
   - node library: `Cast`, `Delay`, `Condition`, `SpawnProjectile`, `Damage`, `AddBuff`
-  - sample graph: `FireballSkillGraph`
-- Projectile model with multi-mode behavior (`homing`, `linear`, `pierce`, `split`, `bounce`)
+- Data-driven Projectile runtime
+  - `ProjectileFactory` + `ProjectileConfig`
+  - `ProjectileSystem` handles move/collision/life-cycle only
+  - emits `projectileHit`; damage is handled by combat flow
+  - behaviors: `Linear`, `Homing`, `Bounce`, `Split`
 - Buff stack policy (`refresh` / `extend` / `replace`)
 - Aggro subsystem with threat table + taunt + decay
 - AI behavior tree primitives (`Selector` / `Sequence` / `Condition`)
@@ -30,4 +33,4 @@ Industrial-style ARPG battle framework core written in TypeScript.
 Architecture follows a Hybrid ECS blueprint for Cocos-style ARPG battle runtimes:
 - Systems communicate via `World.eventBus` (instead of direct system-to-system calls)
 - Components store data only
-- Skill/Buff/AI logic is organized toward data-driven extension
+- Skill/Buff/AI/Projectile logic is organized toward data-driven extension

@@ -1,13 +1,19 @@
-import type { ProjectileType } from '../components/ProjectileComponent';
+import type { ProjectileBehavior } from '../components/ProjectileComponent';
 
 export interface ProjectileConfig {
-  ownerId: number;
-  targetId: number;
+  id: number;
   speed: number;
+  lifeTime: number;
+  radius: number;
+  penetrate: number;
+  behavior: ProjectileBehavior;
   damage: number;
-  hitRadius?: number;
-  projectileType?: ProjectileType;
-  pierceLeft?: number;
-  splitCount?: number;
-  bounceLeft?: number;
+  bounce?: number;
+  split?: number;
+}
+
+export interface SpawnProjectileRequest {
+  projectileId: number;
+  casterId: number;
+  targetId: number | null;
 }

@@ -1,23 +1,26 @@
 import { BaseComponent } from '../../core/ecs/Component';
 
-export type ProjectileType = 'homing' | 'linear' | 'pierce' | 'split' | 'bounce';
+export type ProjectileBehavior = 'Linear' | 'Homing' | 'Bounce' | 'Split';
 
 export class ProjectileComponent extends BaseComponent {
   public readonly type = 'Projectile';
 
   constructor(
-    public ownerId: number,
-    public targetId: number,
+    public projectileId: number,
+    public casterId: number,
+    public targetId: number | null,
     public speed: number,
-    public damage: number,
-    public hitRadius = 0.3,
-    public projectileType: ProjectileType = 'homing',
-    public pierceLeft = 0,
-    public splitCount = 0,
+    public directionX: number,
+    public directionY: number,
+    public lifeTime: number,
+    public age = 0,
+    public radius = 0.3,
+    public penetrate = 1,
+    public behavior: ProjectileBehavior = 'Linear',
+    public damage = 10,
     public bounceLeft = 0,
-    public dirX = 0,
-    public dirY = 0,
-    public hitSet: Set<number> = new Set<number>(),
+    public splitCount = 0,
+    public hitTargets: Set<number> = new Set<number>(),
   ) {
     super();
   }

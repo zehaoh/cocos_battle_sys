@@ -1,7 +1,5 @@
-import type { BattleWorld } from '../BattleWorld';
-
 export class ProjectileBehaviorTree {
-  public tick(world: BattleWorld, projectileId: number, dt: number): void {
-    world.updateProjectileMotion(projectileId, dt);
+  public tick(_projectileId: number, _dt: number): void {
+    // Kept as extension point for future per-projectile behavior trees.
   }
 }

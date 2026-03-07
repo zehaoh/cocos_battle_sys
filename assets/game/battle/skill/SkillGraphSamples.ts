@@ -14,9 +14,7 @@ export const FireballSkillGraph: SkillGraph = {
       type: 'SpawnProjectile',
       next: [3],
       params: {
-        speed: 10,
-        damage: 20,
-        projectileType: 'homing',
+        projectileId: 2001,
       },
     },
     {
