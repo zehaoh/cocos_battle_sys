@@ -71,3 +71,15 @@ Architecture follows Hybrid ECS + event-driven decoupling:
 - SkillGraph runtime is an interpreter over graph assets
 - Buff lifecycle is policy-driven and event-observable
 - Combat pipeline is the HP change authority
+
+
+## Branch visibility note
+
+If you cannot find a referenced commit hash in this branch, verify with:
+
+```bash
+git log --oneline -5
+git branch --show-current
+```
+
+This repository currently tracks ARPG battle framework code under `assets/game/**` and may include iterative refactor commits over time.
