@@ -2,6 +2,7 @@ import { System } from '../../core/ecs/System';
 import type { World } from '../../core/ecs/World';
 import { SpatialHash } from '../../core/math/SpatialHash';
 import { MathUtil } from '../../core/math/MathUtil';
+import type { BattleWorld } from '../BattleWorld';
 import { CombatComponent } from '../components/CombatComponent';
 import { TargetComponent } from '../components/TargetComponent';
 import { TransformComponent } from '../components/TransformComponent';
@@ -9,7 +10,10 @@ import { TransformComponent } from '../components/TransformComponent';
 export class AggroSystem extends System {
   private readonly spatial = new SpatialHash<number>(4);
 
-  constructor(private readonly radius = 10) {
+  constructor(
+    private readonly battleWorld: BattleWorld,
+    private readonly radius = 10,
+  ) {
     super(15);
   }
 
@@ -26,7 +30,12 @@ export class AggroSystem extends System {
       const transform = entity.get<TransformComponent>('Transform') as TransformComponent;
       const target = entity.get<TargetComponent>('Target') as TargetComponent;
       if (!combat.alive) continue;
-      if (target.targetId !== null) continue;
+
+      const threatTarget = this.battleWorld.pickAggroTarget(entity.id);
+      if (threatTarget !== null) {
+        target.targetId = threatTarget;
+        continue;
+      }
 
       const nearby = this.spatial.query(transform, this.radius);
       let bestTarget: number | null = null;

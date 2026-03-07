@@ -37,11 +37,13 @@ export class World {
   }
 
   public query(required: string[]): Entity[] {
+    if (required.length === 0) return [];
+
+    const ids = this.componentManager.entitiesWithAll(required);
     const out: Entity[] = [];
-    for (const entity of this.entityManager.getAll()) {
-      if (entity.hasAll(required)) {
-        out.push(entity);
-      }
+    for (const entityId of ids) {
+      const entity = this.entityManager.getEntity(entityId);
+      if (entity) out.push(entity);
     }
     return out;
   }

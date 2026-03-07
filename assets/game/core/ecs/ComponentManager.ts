@@ -21,6 +21,27 @@ export class ComponentManager {
     return this.index.get(type) ?? new Set<number>();
   }
 
+  public entitiesWithAll(types: string[]): number[] {
+    if (types.length === 0) return [];
+
+    const sorted = [...types].sort((a, b) => this.entitiesWith(a).size - this.entitiesWith(b).size);
+    const seed = this.entitiesWith(sorted[0]);
+    if (seed.size === 0) return [];
+
+    const out: number[] = [];
+    for (const entityId of seed) {
+      let ok = true;
+      for (let i = 1; i < sorted.length; i++) {
+        if (!this.entitiesWith(sorted[i]).has(entityId)) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) out.push(entityId);
+    }
+    return out;
+  }
+
   public clearEntity(entity: Entity): void {
     for (const [type] of entity.entries()) {
       this.onRemoved(entity, type);
