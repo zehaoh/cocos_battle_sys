@@ -1,15 +1,16 @@
-import type { SkillContext, SkillNode } from '../SkillNode';
+import { BaseSkillNode } from './BaseSkillNode';
+import type { SkillContext } from '../SkillNode';
+import type { SkillNodeData } from '../SkillGraph';
 
-export class AddBuffNode implements SkillNode {
-  constructor(
-    public readonly id: string,
-    private readonly buffId: string,
-    private readonly toTarget = true,
-  ) {}
+export class AddBuffNode extends BaseSkillNode {
+  public execute(node: SkillNodeData, ctx: SkillContext): void {
+    const buffId = this.stringParam(node, 'buffId');
+    if (!buffId) return;
 
-  public run(ctx: SkillContext): void {
-    const entityId = this.toTarget ? ctx.targetId : ctx.casterId;
+    const toTarget = this.boolParam(node, 'toTarget', true);
+    const entityId = toTarget ? ctx.targetId : ctx.casterId;
     if (entityId === null) return;
-    ctx.world.applyBuff(entityId, this.buffId);
+
+    ctx.world.applyBuff(entityId, buffId);
   }
 }

@@ -1,20 +1,22 @@
-import type { SkillNode } from './SkillNode';
+export interface SkillNodeData {
+  id: number;
+  type: string;
+  next: number[];
+  params?: Record<string, unknown>;
+}
 
-export class SkillGraph {
-  public readonly nodes = new Map<string, SkillNode>();
-  public readonly edges = new Map<string, string[]>();
-  public entryNodeId: string | null = null;
+export interface SkillGraph {
+  id: number;
+  entry: number;
+  nodes: SkillNodeData[];
+}
 
-  public addNode(node: SkillNode): this {
-    this.nodes.set(node.id, node);
-    if (!this.entryNodeId) this.entryNodeId = node.id;
-    return this;
+export class SkillGraphUtil {
+  public static findNode(graph: SkillGraph, nodeId: number): SkillNodeData | undefined {
+    return graph.nodes.find((node) => node.id === nodeId);
   }
 
-  public addEdge(fromId: string, toId: string): this {
-    const list = this.edges.get(fromId) ?? [];
-    list.push(toId);
-    this.edges.set(fromId, list);
-    return this;
+  public static fromJSON(data: string): SkillGraph {
+    return JSON.parse(data) as SkillGraph;
   }
 }

@@ -13,9 +13,11 @@ Industrial-style ARPG battle framework core written in TypeScript.
 - Service layer
   - `BattleConfigService`
   - `CombatService` + `DamageCalculator`
-- Skill graph runtime
-  - `SkillGraph`, `SkillExecutor`
-  - nodes: `CastNode`, `SpawnProjectileNode`, `DamageNode`, `AddBuffNode`
+- Data-driven SkillGraph runtime
+  - graph schema: `SkillGraph` / `SkillNodeData`
+  - executor + node factory: `SkillExecutor`, `SkillNodeFactory`
+  - node library: `Cast`, `Delay`, `Condition`, `SpawnProjectile`, `Damage`, `AddBuff`
+  - sample graph: `FireballSkillGraph`
 - Projectile model with multi-mode behavior (`homing`, `linear`, `pierce`, `split`, `bounce`)
 - Buff stack policy (`refresh` / `extend` / `replace`)
 - Aggro subsystem with threat table + taunt + decay
