@@ -1,16 +1,18 @@
 import { BattleWorld } from '../BattleWorld';
+import { DamageType } from '../combat/DamageType';
+import type { DamageRequest } from '../combat/DamageRequest';
 import type { NavMesh } from '../pathfinding/NavMesh';
+import type { SpawnProjectileRequest } from '../projectile/Projectile';
 import { ProjectileFactory } from '../projectile/ProjectileFactory';
 import { AISystem } from '../systems/AISystem';
 import { AggroSystem } from '../systems/AggroSystem';
 import { BuffSystem } from '../systems/BuffSystem';
-import { CombatSystem, type DamageRequest } from '../systems/CombatSystem';
+import { CombatSystem } from '../systems/CombatSystem';
 import { MovementSystem } from '../systems/MovementSystem';
 import { PathfindingSystem } from '../pathfinding/PathfindingSystem';
 import { ProjectileSystem, type ProjectileHitEvent } from '../systems/ProjectileSystem';
 import { SkillSystem, type SkillCastRequest } from '../systems/SkillSystem';
 import { SyncSystem } from '../systems/SyncSystem';
-import type { SpawnProjectileRequest } from '../projectile/Projectile';
 
 export interface RuntimeOptions {
   navMesh?: NavMesh;
@@ -45,14 +47,18 @@ export class BattleRuntime {
       const req = payload as ProjectileHitEvent;
       world.eventBus.emit('damageRequest', {
         attackerId: req.casterId,
-        defenderId: req.targetId,
+        targetId: req.targetId,
+        skillId: req.skillId ?? 0,
         damage: req.damage,
+        damageType: req.damageType ?? DamageType.Physical,
+        critRate: req.critRate ?? 0,
+        critMultiplier: req.critMultiplier ?? 1.5,
       } as DamageRequest);
     });
 
     world.eventBus.on('damageRequest', (payload) => {
       const req = payload as DamageRequest;
-      this.battleWorld.applyDamage(req.attackerId, req.defenderId, req.damage);
+      this.battleWorld.applyDamage(req);
     });
 
     if (options.navMesh) {

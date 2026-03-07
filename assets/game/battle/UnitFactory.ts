@@ -25,7 +25,7 @@ export class UnitFactory {
 
     world.addComponent(entity.id, new TransformComponent(data.x, data.y));
     world.addComponent(entity.id, new MoveComponent(data.moveSpeed, data.x, data.y, false));
-    world.addComponent(entity.id, new CombatComponent(data.team, data.hp, data.hp, data.attack, data.defense, data.attackRange));
+    world.addComponent(entity.id, new CombatComponent(data.team, data.hp, data.hp, data.attack, data.defense, 0, 0, data.attackRange));
     world.addComponent(entity.id, new TargetComponent());
     world.addComponent(entity.id, new SkillComponent());
     world.addComponent(entity.id, new BuffComponent());

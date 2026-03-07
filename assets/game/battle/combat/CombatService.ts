@@ -1,12 +1,18 @@
-import { DamageCalculator } from './DamageCalculator';
+import type { BuffComponent } from '../components/BuffComponent';
+import { DamagePipeline } from './DamagePipeline';
+import type { DamageRequest } from './DamageRequest';
+import type { DamageResult } from './DamageResult';
+
+export interface CombatServiceContext {
+  defense: number;
+  physicalResist: number;
+  magicResist: number;
+  attackerBuff?: BuffComponent;
+  targetBuff?: BuffComponent;
+}
 
 export class CombatService {
-  private readonly calculator = new DamageCalculator();
-
-  public computeDamage(rawDamage: number, defense: number): number {
-    return this.calculator.calc({
-      rawDamage,
-      defense,
-    });
+  public calculateDamage(req: DamageRequest, ctx: CombatServiceContext): DamageResult {
+    return DamagePipeline.calculate(req, ctx);
   }
 }

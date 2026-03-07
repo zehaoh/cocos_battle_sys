@@ -1,15 +1,11 @@
 import { System } from '../../core/ecs/System';
 import type { World } from '../../core/ecs/World';
 import { MathUtil } from '../../core/math/MathUtil';
+import { DamageType } from '../combat/DamageType';
+import type { DamageRequest } from '../combat/DamageRequest';
 import { CombatComponent } from '../components/CombatComponent';
 import { TargetComponent } from '../components/TargetComponent';
 import { TransformComponent } from '../components/TransformComponent';
-
-export interface DamageRequest {
-  attackerId: number;
-  defenderId: number;
-  damage: number;
-}
 
 export class CombatSystem extends System {
   constructor() {
@@ -41,8 +37,12 @@ export class CombatSystem extends System {
       if (dist <= combat.attackRange && combat.cooldownLeft <= 0) {
         world.eventBus.emit('damageRequest', {
           attackerId: entity.id,
-          defenderId: target.targetId,
+          targetId: target.targetId,
+          skillId: 0,
           damage: combat.attack,
+          damageType: DamageType.Physical,
+          critRate: 0.1,
+          critMultiplier: 1.5,
         } as DamageRequest);
         combat.cooldownLeft = combat.attackCooldown;
       }

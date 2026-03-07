@@ -5,12 +5,18 @@ import { CombatComponent } from '../components/CombatComponent';
 import { ProjectileComponent } from '../components/ProjectileComponent';
 import { TransformComponent } from '../components/TransformComponent';
 
+import { DamageType } from '../combat/DamageType';
+
 export interface ProjectileHitEvent {
   projectileEntityId: number;
   projectileId: number;
   casterId: number;
   targetId: number;
   damage: number;
+  damageType: DamageType;
+  critRate: number;
+  critMultiplier: number;
+  skillId?: number;
 }
 
 export class ProjectileSystem extends System {
@@ -81,6 +87,10 @@ export class ProjectileSystem extends System {
         casterId: projectile.casterId,
         targetId: candidate.id,
         damage: projectile.damage,
+        damageType: DamageType.Physical,
+        critRate: 0.2,
+        critMultiplier: 1.5,
+        skillId: 0,
       } as ProjectileHitEvent);
 
       projectile.penetrate -= 1;

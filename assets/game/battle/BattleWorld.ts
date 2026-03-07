@@ -3,6 +3,8 @@ import { AggroTable } from './aggro/AggroTable';
 import { BuffFactory } from './buff/BuffFactory';
 import { BuffStackRule } from './buff/BuffStackRule';
 import { CombatService } from './combat/CombatService';
+import type { DamageRequest } from './combat/DamageRequest';
+import { DamageType } from './combat/DamageType';
 import { BattleConfigService, type BattleConfig } from './config/BattleConfig';
 import { BuffComponent } from './components/BuffComponent';
 import { CombatComponent } from './components/CombatComponent';
@@ -68,34 +70,60 @@ export class BattleWorld {
     this.world.eventBus.emit('castSkill', payload);
   }
 
-  public applyDamage(attackerId: number, defenderId: number, rawDamage: number): void {
-    const defender = this.world.getEntity(defenderId);
+  public applyDamage(req: DamageRequest): void {
+    const attacker = this.world.getEntity(req.attackerId);
+    const defender = this.world.getEntity(req.targetId);
     if (!defender) return;
-    const combat = defender.get<CombatComponent>('Combat');
-    if (!combat || !combat.alive) return;
 
-    const damage = this.combatService.computeDamage(rawDamage, combat.defense);
-    combat.hp -= damage;
-    this.addThreat(defenderId, attackerId, damage);
+    const targetCombat = defender.get<CombatComponent>('Combat');
+    if (!targetCombat || !targetCombat.alive) return;
 
-    if (combat.hp <= 0) {
-      combat.alive = false;
-      combat.hp = 0;
-      this.world.destroyEntity(defenderId);
-      this.aggroTables.delete(defenderId);
-      this.world.eventBus.emit('unitDead', { tick: this.tick, entityId: defenderId });
+    const attackerBuff = attacker?.get<BuffComponent>('Buff');
+    const targetBuff = defender.get<BuffComponent>('Buff');
+
+    const result = this.combatService.calculateDamage(req, {
+      defense: targetCombat.defense,
+      physicalResist: targetCombat.physicalResist,
+      magicResist: targetCombat.magicResist,
+      attackerBuff,
+      targetBuff,
+    });
+
+    targetCombat.hp -= result.finalDamage;
+    this.addThreat(req.targetId, req.attackerId, result.finalDamage);
+
+    if (targetCombat.hp <= 0) {
+      targetCombat.alive = false;
+      targetCombat.hp = 0;
+      this.world.destroyEntity(req.targetId);
+      this.aggroTables.delete(req.targetId);
+      this.world.eventBus.emit('unitDead', { tick: this.tick, entityId: req.targetId });
     }
 
     const payload = {
       tick: this.tick,
-      attackerId,
-      defenderId,
-      damage,
-      hpLeft: combat.hp,
+      attackerId: req.attackerId,
+      defenderId: req.targetId,
+      damage: result.finalDamage,
+      hpLeft: targetCombat.hp,
+      isCrit: result.isCrit,
+      damageType: result.damageType,
     };
 
     this.recorder.record(this.tick, 'damage', payload);
     this.world.eventBus.emit('damage', payload);
+  }
+
+  public applySimpleDamage(attackerId: number, targetId: number, damage: number): void {
+    this.applyDamage({
+      attackerId,
+      targetId,
+      skillId: 0,
+      damage,
+      damageType: DamageType.Physical,
+      critRate: 0,
+      critMultiplier: 1.5,
+    });
   }
 
   public applyBuff(entityId: number, buffId: string): void {

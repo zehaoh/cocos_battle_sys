@@ -12,7 +12,11 @@ Industrial-style ARPG battle framework core written in TypeScript.
 - `BattleWorld` orchestration + `BattleRuntime` pipeline installer
 - Service layer
   - `BattleConfigService`
-  - `CombatService` + `DamageCalculator`
+  - `CombatService` + `DamagePipeline`
+- Industrial combat pipeline
+  - `DamageRequest`, `DamageResult`, `DamageType`
+  - modifiers: `BuffModifier`, `DefenseModifier`, `ResistanceModifier`, `CritModifier`
+  - flow: Projectile/Skill -> `damageRequest` -> combat pipeline -> HP/event
 - Data-driven SkillGraph runtime
   - graph schema: `SkillGraph` / `SkillNodeData`
   - executor + node factory: `SkillExecutor`, `SkillNodeFactory`
@@ -33,4 +37,4 @@ Industrial-style ARPG battle framework core written in TypeScript.
 Architecture follows a Hybrid ECS blueprint for Cocos-style ARPG battle runtimes:
 - Systems communicate via `World.eventBus` (instead of direct system-to-system calls)
 - Components store data only
-- Skill/Buff/AI/Projectile logic is organized toward data-driven extension
+- Skill/Buff/AI/Projectile/Combat logic is organized toward data-driven extension
