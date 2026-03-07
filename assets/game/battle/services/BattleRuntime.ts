@@ -1,4 +1,5 @@
 import { BattleWorld } from '../BattleWorld';
+import type { World } from '../../core/ecs/World';
 import { DamageType } from '../combat/DamageType';
 import type { DamageRequest } from '../combat/DamageRequest';
 import { MoveComponent } from '../components/MoveComponent';
@@ -28,6 +29,9 @@ import { StatSystem } from '../systems/StatSystem';
 import { SummonSystem } from '../systems/SummonSystem';
 import { SyncSystem } from '../systems/SyncSystem';
 import { UnitSystem } from '../systems/UnitSystem';
+import { AnimationEventSystem } from '../animation/AnimationEventSystem';
+import { BattleSimulator } from '../simulation/BattleSimulator';
+import type { Command } from '../simulation/CommandQueue';
 
 export interface RuntimeOptions {
   navMesh?: NavMesh;
@@ -38,34 +42,39 @@ export class BattleRuntime {
   private readonly projectileFactory = new ProjectileFactory();
   private readonly skillGraphRuntime: SkillGraphRuntime;
   public readonly inputSystem = new InputSystem();
+  public readonly simulator: BattleSimulator;
   private fallbackGridNav = new GridNav(128, 128);
 
   constructor(public readonly battleWorld: BattleWorld) {
     this.skillGraphRuntime = new SkillGraphRuntime(battleWorld);
+    this.simulator = new BattleSimulator(battleWorld.world);
+  }
+
+  public update(dt: number): void {
+    this.simulator.update(dt);
+    this.battleWorld.updatePostSimulation();
   }
 
   public installDefaultPipeline(options: RuntimeOptions = {}): void {
     const world = this.battleWorld.world;
 
+    world.eventBus.on('executeCommand', (payload) => {
+      this.applyCommand(world, payload as Command);
+    });
+
     world.eventBus.on('inputCommand', (payload) => {
       const cmd = payload as InputCommand;
+      const frame = this.simulator.getCurrentFrame() + 1;
+
       if (cmd.type === 'CastSkill') {
         const cast = cmd as CastSkillCommand;
-        world.eventBus.emit('startSkill', { casterId: cast.casterId, skillId: cast.skillId, targetId: cast.targetId });
+        this.simulator.enqueue('CastSkill', cast.casterId, { skillId: cast.skillId, targetId: cast.targetId }, frame);
       } else if (cmd.type === 'Move') {
         const moveCmd = cmd as MoveCommand;
-        const entity = world.getEntity(moveCmd.entityId);
-        const move = entity?.get<MoveComponent>('Move');
-        if (move) {
-          move.destinationX = moveCmd.x;
-          move.destinationY = moveCmd.y;
-          move.moving = true;
-        }
+        this.simulator.enqueue('Move', moveCmd.entityId, { x: moveCmd.x, y: moveCmd.y }, frame);
       } else if (cmd.type === 'Target') {
         const targetCmd = cmd as TargetCommand;
-        const entity = world.getEntity(targetCmd.entityId);
-        const target = entity?.get<TargetComponent>('Target');
-        if (target) target.targetId = targetCmd.targetId;
+        this.simulator.enqueue('Target', targetCmd.entityId, { targetId: targetCmd.targetId }, frame);
       }
     });
 
@@ -152,16 +161,51 @@ export class BattleRuntime {
     world.registerSystem(new UnitSystem());
     world.registerSystem(new StatSystem());
     world.registerSystem(new MovementSystem());
-    world.registerSystem(new AggroSystem(this.battleWorld));
+    world.registerSystem(new AggroSystem());
     world.registerSystem(new BuffSystem(this.battleWorld.buffFactory, this.battleWorld));
     world.registerSystem(new AISystem());
     world.registerSystem(new SkillSystem());
     world.registerSystem(new SummonSystem());
+    world.registerSystem(new AnimationEventSystem());
     world.registerSystem(new CombatSystem());
     world.registerSystem(new ProjectileSystem());
     world.registerSystem(new CollisionSystem());
     world.registerSystem(new DeathSystem());
     world.registerSystem(new DropSystem());
     world.registerSystem(new SyncSystem(this.battleWorld.serverSync));
+  }
+
+  private applyCommand(world: World, command: Command): void {
+    if (command.type === 'CastSkill') {
+      const skillId = command.params?.skillId;
+      const targetId = command.params?.targetId;
+      if (typeof skillId !== 'string') return;
+      world.eventBus.emit('startSkill', {
+        casterId: command.entity,
+        skillId,
+        targetId: typeof targetId === 'number' ? targetId : null,
+      });
+      return;
+    }
+
+    if (command.type === 'Move') {
+      const x = command.params?.x;
+      const y = command.params?.y;
+      const entity = world.getEntity(command.entity);
+      const move = entity?.get<MoveComponent>('Move');
+      if (!move || typeof x !== 'number' || typeof y !== 'number') return;
+      move.destinationX = x;
+      move.destinationY = y;
+      move.moving = true;
+      return;
+    }
+
+    if (command.type === 'Target') {
+      const targetId = command.params?.targetId;
+      const entity = world.getEntity(command.entity);
+      const target = entity?.get<TargetComponent>('Target');
+      if (!target) return;
+      target.targetId = typeof targetId === 'number' ? targetId : null;
+    }
   }
 }

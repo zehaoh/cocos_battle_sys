@@ -1,5 +1,4 @@
 import { World } from '../core/ecs/World';
-import { AggroTable } from './aggro/AggroTable';
 import { BuffFactory } from './buff/BuffFactory';
 import { BuffStackRule } from './buff/BuffStackRule';
 import { CombatService } from './combat/CombatService';
@@ -26,7 +25,6 @@ export class BattleWorld {
   private readonly combatService = new CombatService();
 
   private readonly skills = new Map<string, SkillGraph>();
-  private readonly aggroTables = new Map<number, AggroTable>();
   private readonly skillGraphLoader = new SkillGraphLoader();
 
   private tick = 0;
@@ -39,12 +37,12 @@ export class BattleWorld {
 
   public update(dt: number): void {
     this.world.update(dt);
-    this.timer.update(dt);
-    this.tick += 1;
+    this.updatePostSimulation();
+  }
 
-    for (const [, table] of this.aggroTables) {
-      table.decay(dt * this.config.get('aggroDecayPerSecond'));
-    }
+  public updatePostSimulation(): void {
+    this.timer.update(1 / 30);
+    this.tick += 1;
 
     this.serverSync.pushSnapshot({
       tick: this.tick,
@@ -57,8 +55,6 @@ export class BattleWorld {
   public registerSkill(skillId: string, graph: SkillGraph): void {
     this.skills.set(skillId, graph);
   }
-
-
 
   public loadSkillGraphJSON(skillId: string, graphJSON: string): void {
     const graph = this.skillGraphLoader.loadFromJSON(graphJSON);
@@ -103,13 +99,11 @@ export class BattleWorld {
     });
 
     targetCombat.hp -= result.finalDamage;
-    this.addThreat(req.targetId, req.attackerId, result.finalDamage);
 
     if (targetCombat.hp <= 0) {
       targetCombat.alive = false;
       targetCombat.hp = 0;
       this.world.destroyEntity(req.targetId);
-      this.aggroTables.delete(req.targetId);
       this.world.eventBus.emit('unitDead', { tick: this.tick, entityId: req.targetId });
     }
 
@@ -160,34 +154,6 @@ export class BattleWorld {
       stackPolicy: next.stackPolicy,
       effectType: meta.effectType ?? 'Trigger',
     });
-  }
-
-  public addThreat(ownerId: number, sourceId: number, value: number): void {
-    const table = this.ensureAggroTable(ownerId);
-    table.addThreat(sourceId, value);
-  }
-
-  public setTaunt(ownerId: number, sourceId: number | null): void {
-    this.ensureAggroTable(ownerId).setTaunt(sourceId);
-  }
-
-  public pickAggroTarget(ownerId: number): number | null {
-    const table = this.aggroTables.get(ownerId);
-    if (!table) return null;
-    return table.pickTarget((entityId) => {
-      const entity = this.world.getEntity(entityId);
-      const combat = entity?.get<CombatComponent>('Combat');
-      return Boolean(combat?.alive);
-    });
-  }
-
-  private ensureAggroTable(ownerId: number): AggroTable {
-    let table = this.aggroTables.get(ownerId);
-    if (!table) {
-      table = new AggroTable();
-      this.aggroTables.set(ownerId, table);
-    }
-    return table;
   }
 
   private aliveUnits(): number {

@@ -1,62 +1,118 @@
 import { System } from '../../core/ecs/System';
 import type { World } from '../../core/ecs/World';
-import { SpatialHash } from '../../core/math/SpatialHash';
-import { MathUtil } from '../../core/math/MathUtil';
-import type { BattleWorld } from '../BattleWorld';
 import { CombatComponent } from '../components/CombatComponent';
 import { TargetComponent } from '../components/TargetComponent';
-import { TransformComponent } from '../components/TransformComponent';
+import { ThreatComponent } from '../components/ThreatComponent';
+import { ThreatRule } from '../aggro/ThreatRule';
+import { TargetSelector } from '../aggro/TargetSelector';
+
+interface DamageEvent {
+  attackerId: number;
+  defenderId: number;
+  damage: number;
+}
+
+interface HealEvent {
+  sourceId: number;
+  targetId: number;
+  heal: number;
+}
+
+interface TauntEvent {
+  sourceId: number;
+  targetId: number;
+  value?: number;
+}
+
+interface BuffEvent {
+  sourceId?: number;
+  entityId: number;
+  stacks: number;
+}
 
 export class AggroSystem extends System {
-  private readonly spatial = new SpatialHash<number>(4);
+  private readonly selector = new TargetSelector();
+  private readonly threatRule = new ThreatRule();
+  private readonly unsubscribers: Array<() => void> = [];
 
-  constructor(
-    private readonly battleWorld: BattleWorld,
-    private readonly radius = 10,
-  ) {
+  constructor(private readonly decayPerTick = 0.99) {
     super(15);
   }
 
-  public update(world: World, _dt: number): void {
-    this.spatial.clear();
+  public override onAttach(world: World): void {
+    this.unsubscribers.push(
+      world.eventBus.on('damage', (payload) => this.onDamage(world, payload as DamageEvent)),
+      world.eventBus.on('heal', (payload) => this.onHeal(world, payload as HealEvent)),
+      world.eventBus.on('taunt', (payload) => this.onTaunt(world, payload as TauntEvent)),
+      world.eventBus.on('buffApply', (payload) => this.onBuff(world, payload as BuffEvent)),
+    );
+  }
 
-    for (const entity of world.query(['Combat', 'Transform'])) {
-      const transform = entity.get<TransformComponent>('Transform') as TransformComponent;
-      this.spatial.insert(transform, entity.id);
+  public override onDetach(): void {
+    while (this.unsubscribers.length > 0) {
+      const off = this.unsubscribers.pop() as () => void;
+      off();
     }
+  }
 
-    for (const entity of world.query(['Combat', 'Transform', 'Target'])) {
+  public update(world: World, _dt: number): void {
+    for (const entity of world.query(['Combat', 'Threat', 'Target'])) {
       const combat = entity.get<CombatComponent>('Combat') as CombatComponent;
-      const transform = entity.get<TransformComponent>('Transform') as TransformComponent;
+      const threat = entity.get<ThreatComponent>('Threat') as ThreatComponent;
       const target = entity.get<TargetComponent>('Target') as TargetComponent;
-      if (!combat.alive) continue;
 
-      const threatTarget = this.battleWorld.pickAggroTarget(entity.id);
-      if (threatTarget !== null) {
-        target.targetId = threatTarget;
+      if (!combat.alive) {
+        threat.currentTarget = null;
+        target.targetId = null;
         continue;
       }
 
-      const nearby = this.spatial.query(transform, this.radius);
-      let bestTarget: number | null = null;
-      let bestDist = Number.POSITIVE_INFINITY;
+      threat.table.decay(this.decayPerTick);
+      const nextTarget = this.selector.selectTarget(world, entity.id, threat);
+      threat.currentTarget = nextTarget;
+      target.targetId = nextTarget;
+    }
+  }
 
-      for (const otherId of nearby) {
-        if (otherId === entity.id) continue;
-        const otherEntity = world.getEntity(otherId);
-        const otherCombat = otherEntity?.get<CombatComponent>('Combat');
-        const otherTransform = otherEntity?.get<TransformComponent>('Transform');
-        if (!otherCombat || !otherTransform || !otherCombat.alive) continue;
-        if (otherCombat.team === combat.team) continue;
+  private onDamage(world: World, event: DamageEvent): void {
+    const threatOwner = world.getEntity(event.defenderId);
+    const comp = threatOwner?.get<ThreatComponent>('Threat');
+    if (!comp) return;
+    comp.table.add(event.attackerId, this.threatRule.fromDamage(event.damage));
+  }
 
-        const dist = MathUtil.distance(transform, otherTransform);
-        if (dist < bestDist && dist <= this.radius) {
-          bestDist = dist;
-          bestTarget = otherId;
-        }
-      }
+  private onHeal(world: World, event: HealEvent): void {
+    const healed = world.getEntity(event.targetId);
+    const healedCombat = healed?.get<CombatComponent>('Combat');
+    if (!healedCombat) return;
 
-      target.targetId = bestTarget;
+    for (const entity of world.query(['Combat', 'Threat'])) {
+      const combat = entity.get<CombatComponent>('Combat') as CombatComponent;
+      if (combat.team === healedCombat.team || !combat.alive) continue;
+      const threat = entity.get<ThreatComponent>('Threat') as ThreatComponent;
+      threat.table.add(event.sourceId, this.threatRule.fromHeal(event.heal));
+    }
+  }
+
+  private onTaunt(world: World, event: TauntEvent): void {
+    const taunted = world.getEntity(event.targetId);
+    const threat = taunted?.get<ThreatComponent>('Threat');
+    if (!threat) return;
+    threat.table.add(event.sourceId, this.threatRule.fromTaunt(event.value));
+  }
+
+  private onBuff(world: World, event: BuffEvent): void {
+    if (event.sourceId === undefined) return;
+
+    const buffed = world.getEntity(event.entityId);
+    const buffedCombat = buffed?.get<CombatComponent>('Combat');
+    if (!buffedCombat) return;
+
+    for (const entity of world.query(['Combat', 'Threat'])) {
+      const combat = entity.get<CombatComponent>('Combat') as CombatComponent;
+      if (combat.team === buffedCombat.team || !combat.alive) continue;
+      const threat = entity.get<ThreatComponent>('Threat') as ThreatComponent;
+      threat.table.add(event.sourceId, this.threatRule.fromBuff(event.stacks));
     }
   }
 }

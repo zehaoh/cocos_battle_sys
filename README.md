@@ -37,6 +37,12 @@ Client Input
   - `SkillGraphLoader` for JSON asset import
   - SkillGraph asset model now supports `nodes + edges`
 
+
+- Advanced combat control additions
+  - Threat/Aggro stack: `ThreatComponent`, `ThreatTable`, `ThreatRule`, `TargetSelector`, `AggroSystem`
+  - Animation driven combat: `AnimationEventComponent`, `AnimationEventSystem`, `AnimationEventDispatcher`
+  - Deterministic simulation: `CommandQueue`, `SimulationClock`, `BattleSimulator`, `SnapshotSystem`
+
 ## Included modules
 
 - Core runtime
