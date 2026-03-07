@@ -5,10 +5,14 @@ Industrial-style ARPG battle framework core written in TypeScript.
 ## Included modules
 
 - ECS core (`Entity`, `Component`, `System`, `World`, managers)
-  - Query execution now uses component-index intersection instead of brute force scanning
+  - Query execution uses component-index intersection instead of brute-force scanning
 - Math and runtime utilities (`MathUtil`, `SpatialHash`, `ObjectPool`)
 - Battle components and runtime systems
 - `BattleWorld` orchestration and `UnitFactory`
+- Service layer for runtime composition:
+  - `BattleRuntime` default system pipeline installer
+  - `BattleConfigService` for tunables
+  - `EventBus` for decoupled gameplay events
 - Skill graph + executor + sample nodes
 - Projectile behavior pipeline with multi-mode projectiles:
   - `homing`, `linear`, `pierce`, `split`, `bounce`

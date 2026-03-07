@@ -1,8 +1,11 @@
+import { EventBus } from '../core/event/EventBus';
 import { World } from '../core/ecs/World';
 import { MathUtil } from '../core/math/MathUtil';
+import { ObjectPool } from '../core/pool/ObjectPool';
 import { AggroTable } from './aggro/AggroTable';
 import { BuffFactory } from './buff/BuffFactory';
 import { BuffStackRule } from './buff/BuffStackRule';
+import { BattleConfigService, type BattleConfig } from './config/BattleConfig';
 import { BuffComponent } from './components/BuffComponent';
 import { CombatComponent } from './components/CombatComponent';
 import { ProjectileComponent, type ProjectileType } from './components/ProjectileComponent';
@@ -14,25 +17,57 @@ import { BattleRecorder } from './replay/BattleRecorder';
 import { SkillExecutor } from './skill/SkillExecutor';
 import { SkillGraph } from './skill/SkillGraph';
 
+export interface BattleEvents {
+  castSkill: { tick: number; skillId: string; casterId: number; targetId: number | null };
+  damage: { tick: number; attackerId: number; defenderId: number; damage: number; hpLeft: number };
+  unitDead: { tick: number; entityId: number };
+  projectileSpawn: { tick: number; projectileId: number; ownerId: number; targetId: number; projectileType: ProjectileType };
+  buffApply: { tick: number; entityId: number; buffId: string; stacks: number };
+}
+
 export class BattleWorld {
   public readonly world = new World();
   public readonly buffFactory = new BuffFactory();
   public readonly buffStackRule = new BuffStackRule('refresh');
   public readonly skillExecutor = new SkillExecutor();
   public readonly recorder = new BattleRecorder();
-  public readonly serverSync = new ServerSync();
   public readonly projectileBT = new ProjectileBehaviorTree();
+  public readonly config: BattleConfigService;
+  public readonly eventBus = new EventBus<BattleEvents>();
 
   private readonly skills = new Map<string, SkillGraph>();
   private readonly aggroTables = new Map<number, AggroTable>();
+  private readonly projectileConfigPool = new ObjectPool<ProjectileConfig>(() => ({
+    ownerId: 0,
+    targetId: 0,
+    speed: 0,
+    damage: 0,
+  }), (obj) => {
+    obj.ownerId = 0;
+    obj.targetId = 0;
+    obj.speed = 0;
+    obj.damage = 0;
+    obj.hitRadius = undefined;
+    obj.projectileType = undefined;
+    obj.pierceLeft = undefined;
+    obj.splitCount = undefined;
+    obj.bounceLeft = undefined;
+  });
+
   private tick = 0;
+  public readonly serverSync: ServerSync;
+
+  constructor(config: Partial<BattleConfig> = {}) {
+    this.config = new BattleConfigService(config);
+    this.serverSync = new ServerSync(this.config.get('maxSnapshots'));
+  }
 
   public update(dt: number): void {
     this.world.update(dt);
     this.tick += 1;
 
     for (const [, table] of this.aggroTables) {
-      table.decay(dt * 0.25);
+      table.decay(dt * this.config.get('aggroDecayPerSecond'));
     }
 
     this.serverSync.pushSnapshot({
@@ -55,7 +90,10 @@ export class BattleWorld {
       targetId,
       world: this,
     });
-    this.recorder.record(this.tick, 'castSkill', { skillId, casterId, targetId });
+
+    const payload = { tick: this.tick, skillId, casterId, targetId };
+    this.recorder.record(this.tick, 'castSkill', payload);
+    this.eventBus.emit('castSkill', payload);
   }
 
   public applyDamage(attackerId: number, defenderId: number, rawDamage: number): void {
@@ -73,14 +111,19 @@ export class BattleWorld {
       combat.hp = 0;
       this.world.destroyEntity(defenderId);
       this.aggroTables.delete(defenderId);
+      this.eventBus.emit('unitDead', { tick: this.tick, entityId: defenderId });
     }
 
-    this.recorder.record(this.tick, 'damage', {
+    const payload = {
+      tick: this.tick,
       attackerId,
       defenderId,
       damage,
       hpLeft: combat.hp,
-    });
+    };
+
+    this.recorder.record(this.tick, 'damage', payload);
+    this.eventBus.emit('damage', payload);
   }
 
   public spawnProjectile(
@@ -90,13 +133,16 @@ export class BattleWorld {
     damage: number,
     projectileType: ProjectileType = 'homing',
   ): number {
-    return this.spawnProjectileByConfig({
-      ownerId,
-      targetId,
-      speed,
-      damage,
-      projectileType,
-    });
+    const cfg = this.projectileConfigPool.acquire();
+    cfg.ownerId = ownerId;
+    cfg.targetId = targetId;
+    cfg.speed = speed;
+    cfg.damage = damage;
+    cfg.projectileType = projectileType;
+
+    const projectileId = this.spawnProjectileByConfig(cfg);
+    this.projectileConfigPool.release(cfg);
+    return projectileId;
   }
 
   public spawnProjectileByConfig(config: ProjectileConfig): number {
@@ -112,6 +158,7 @@ export class BattleWorld {
       ? MathUtil.normalize({ x: targetTransform.x - ownerTransform.x, y: targetTransform.y - ownerTransform.y })
       : { x: 1, y: 0 };
 
+    const projectileType = config.projectileType ?? 'homing';
     this.world.addComponent(
       projectile.id,
       new ProjectileComponent(
@@ -120,7 +167,7 @@ export class BattleWorld {
         config.speed,
         config.damage,
         config.hitRadius ?? 0.3,
-        config.projectileType ?? 'homing',
+        projectileType,
         config.pierceLeft ?? 0,
         config.splitCount ?? 0,
         config.bounceLeft ?? 0,
@@ -129,12 +176,16 @@ export class BattleWorld {
       ),
     );
 
-    this.recorder.record(this.tick, 'projectileSpawn', {
+    const payload = {
+      tick: this.tick,
       projectileId: projectile.id,
       ownerId: config.ownerId,
       targetId: config.targetId,
-      projectileType: config.projectileType ?? 'homing',
-    });
+      projectileType,
+    };
+
+    this.recorder.record(this.tick, 'projectileSpawn', payload);
+    this.eventBus.emit('projectileSpawn', payload);
 
     return projectile.id;
   }
@@ -192,7 +243,10 @@ export class BattleWorld {
     const next = this.buffStackRule.apply(current, meta);
     comp.buffs.set(buffId, next);
     meta.onApply?.(this, entityId, next.stacks);
-    this.recorder.record(this.tick, 'buffApply', { entityId, buffId, stacks: next.stacks });
+
+    const payload = { tick: this.tick, entityId, buffId, stacks: next.stacks };
+    this.recorder.record(this.tick, 'buffApply', payload);
+    this.eventBus.emit('buffApply', payload);
   }
 
   public addThreat(ownerId: number, sourceId: number, value: number): void {
@@ -241,13 +295,18 @@ export class BattleWorld {
 
     if (pData.projectileType === 'split' && pData.splitCount > 0) {
       pData.splitCount -= 1;
-      for (const nextTargetId of this.findEnemiesInRadius(pData.ownerId, pTransform.x, pTransform.y, 4)) {
+      for (const nextTargetId of this.findEnemiesInRadius(
+        pData.ownerId,
+        pTransform.x,
+        pTransform.y,
+        this.config.get('splitSearchRadius'),
+      )) {
         if (nextTargetId === targetId) continue;
         this.spawnProjectileByConfig({
           ownerId: pData.ownerId,
           targetId: nextTargetId,
           speed: pData.speed,
-          damage: Math.max(1, Math.floor(pData.damage * 0.6)),
+          damage: Math.max(1, Math.floor(pData.damage * this.config.get('splitDamageScale'))),
           projectileType: 'homing',
           hitRadius: pData.hitRadius,
         });
@@ -257,8 +316,12 @@ export class BattleWorld {
     }
 
     if (pData.projectileType === 'bounce' && pData.bounceLeft > 0) {
-      const nextTargetId = this.findEnemiesInRadius(pData.ownerId, pTransform.x, pTransform.y, 5)
-        .find((enemyId) => !pData.hitSet.has(enemyId));
+      const nextTargetId = this.findEnemiesInRadius(
+        pData.ownerId,
+        pTransform.x,
+        pTransform.y,
+        this.config.get('bounceSearchRadius'),
+      ).find((enemyId) => !pData.hitSet.has(enemyId));
 
       if (nextTargetId !== undefined) {
         pData.targetId = nextTargetId;
