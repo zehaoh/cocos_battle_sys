@@ -1,0 +1,7 @@
+export enum BuffStackRule {
+  STACK = 'STACK',
+  REPLACE = 'REPLACE',
+  HIGHEST = 'HIGHEST',
+  LOWEST = 'LOWEST',
+  REFRESH_DURATION = 'REFRESH_DURATION',
+}

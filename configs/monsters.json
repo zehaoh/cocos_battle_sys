@@ -1,0 +1,4 @@
+[
+  { "id": "slime", "hp": 120, "attack": 10, "defense": 4, "speed": 2.2 },
+  { "id": "wolf", "hp": 140, "attack": 13, "defense": 5, "speed": 2.8 }
+]

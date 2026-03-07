@@ -1,0 +1,20 @@
+[
+  {
+    "id": "slash",
+    "entry": "1",
+    "nodes": [
+      { "id": "1", "type": "PlayAnimation", "next": ["2"] },
+      { "id": "2", "type": "SpawnHitbox", "next": ["3"] },
+      { "id": "3", "type": "ApplyDamage" }
+    ]
+  },
+  {
+    "id": "poison_strike",
+    "entry": "1",
+    "nodes": [
+      { "id": "1", "type": "PlayAnimation", "next": ["2"] },
+      { "id": "2", "type": "ApplyDamage", "next": ["3"] },
+      { "id": "3", "type": "ApplyBuff", "params": { "buffId": "Poison" } }
+    ]
+  }
+]
